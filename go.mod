@@ -1,6 +1,6 @@
 module noteapp
 
-go 1.23.5
+go 1.23.4
 
 require (
 	github.com/gorilla/mux v1.8.1
