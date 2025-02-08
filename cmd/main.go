@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"noteapp/api"
-	"noteapp/config"
 	"noteapp/pkg/db"
 	"os"
 
@@ -14,7 +13,7 @@ import (
 
 func main() {
 	// Load configuration
-	config.LoadConfig()
+	//config.LoadConfig()
 
 	// Initialize database connection
 	db.InitDB()
