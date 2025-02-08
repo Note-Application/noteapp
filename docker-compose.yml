@@ -1,0 +1,41 @@
+version: "3.8"
+
+networks:
+  kloudnote_network:  # Define a custom network
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: kloudnote-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ganesh
+      POSTGRES_PASSWORD: ganesh123
+      POSTGRES_DB: kloudnote_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - kloudnote_network  # Attach to the network
+
+  kloudnote_api:
+    build: .
+    container_name: kloudnote-api
+    restart: always
+    ports:
+      - "7000:7000"
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres  # Service name is used as hostname within the network
+      DB_USER: ganesh
+      DB_PASSWORD: ganesh123
+      DB_NAME: kloudnote_db
+      DB_PORT: 5432
+    networks:
+      - kloudnote_network  # Attach to the network
+
+volumes:
+  postgres_data:
