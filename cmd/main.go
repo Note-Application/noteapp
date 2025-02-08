@@ -14,7 +14,7 @@ import (
 
 func main() {
 	// Load configuration
-	//config.LoadConfig()
+	config.LoadConfig()
 
 	// Initialize database connection
 	db.InitDB()
