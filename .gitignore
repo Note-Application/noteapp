@@ -9,7 +9,6 @@
 
 # Go build artifacts
 /bin/
-/pkg/
 /dist/
 
 # Dependency files
