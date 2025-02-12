@@ -6,14 +6,16 @@ import (
 	"log"
 )
 
-// CreateUser creates a new user in the database
-func CreateUser(db *sql.DB, user models.User) error {
-	_, err := db.Exec("INSERT INTO users (email, name, profile_pic) VALUES ($1, $2, $3)", user.Email, user.Name, user.ProfilePic)
-	if err != nil {
-		log.Println("Error creating user:", err)
-		return err
-	}
-	return nil
+// CreateUser creates a new user in the database and returns the ID of the newly created user
+func CreateUser(db *sql.DB, user models.User) (int, error) {
+    var id int
+    query := `INSERT INTO users (email, name, profile_pic) VALUES ($1, $2, $3) RETURNING id`
+    err := db.QueryRow(query, user.Email, user.Name, user.ProfilePic).Scan(&id)
+    if err != nil {
+        log.Println("Error creating user:", err)
+        return 0, err
+    }
+    return id, nil
 }
 
 // GetUserByEmail retrieves a user by email from the database

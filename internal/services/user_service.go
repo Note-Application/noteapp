@@ -7,14 +7,14 @@ import (
 	"log"
 )
 
-// CreateUser creates a new user in the database
-func CreateUser(user models.User) error {
-	err := repositories.CreateUser(db.DB, user)
-	if err != nil {
-		log.Println("Error creating user:", err)
-		return err
-	}
-	return nil
+// CreateUser creates a new user in the database and returns the ID of the newly created user
+func CreateUser(user models.User) (int, error) {
+    id, err := repositories.CreateUser(db.DB, user)
+    if err != nil {
+        log.Println("Error creating user:", err)
+        return 0, err
+    }
+    return id, nil
 }
 
 // GetUserByEmail retrieves a user by email from the database

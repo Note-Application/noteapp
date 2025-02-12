@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"noteapp/internal/models"
 	"noteapp/internal/services"
+
 	"github.com/gorilla/mux"
 )
 
@@ -17,12 +18,17 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = services.CreateUser(user)
+	// Create the user and get the ID
+	id, err := services.CreateUser(user)
 	if err != nil {
 		http.Error(w, "Failed to create user", http.StatusInternalServerError)
 		return
 	}
 
+	// Set the ID in the user object
+	user.ID = id
+
+	// Return the created user with ID in the response
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(user)
 }
