@@ -6,14 +6,16 @@ import (
 	"log"
 )
 
-// CreateNote creates a new note in the database
-func CreateNote(db *sql.DB, note models.Note) error {
-	_, err := db.Exec("INSERT INTO notes (user_id, title, content) VALUES ($1, $2, $3)", note.UserID, note.Title, note.Content)
-	if err != nil {
-		log.Println("Error creating note:", err)
-		return err
-	}
-	return nil
+// CreateNote creates a new note in the database and returns the ID of the newly created note
+func CreateNote(db *sql.DB, note models.Note) (int, error) {
+    var id int
+    query := `INSERT INTO notes (user_id, title, content) VALUES ($1, $2, $3) RETURNING id`
+    err := db.QueryRow(query, note.UserID, note.Title, note.Content).Scan(&id)
+    if err != nil {
+        log.Println("Error creating note:", err)
+        return 0, err
+    }
+    return id, nil
 }
 
 // GetNoteByID retrieves a note by its ID
@@ -28,7 +30,8 @@ func GetNoteByID(db *sql.DB, id string) (models.Note, error) {
 
 // GetNotesByUserID retrieves all notes for a specific user
 func GetNotesByUserID(db *sql.DB, userID string) ([]models.Note, error) {
-	rows, err := db.Query("SELECT id, user_id, title, content, created_at, updated_at FROM notes WHERE user_id = $1", userID)
+	rows, err := db.Query("SELECT id, user_id, title, content, created_at, updated_at FROM notes WHERE user_id = $1 ORDER BY created_at ASC", userID)
+
 	if err != nil {
 		log.Println("Error retrieving notes by user ID:", err)
 		return nil, err

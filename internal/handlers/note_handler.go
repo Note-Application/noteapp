@@ -10,21 +10,26 @@ import (
 
 // CreateNote handles creating a new note
 func CreateNote(w http.ResponseWriter, r *http.Request) {
-	var note models.Note
-	err := json.NewDecoder(r.Body).Decode(&note)
-	if err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
+    var note models.Note
+    err := json.NewDecoder(r.Body).Decode(&note)
+    if err != nil {
+        http.Error(w, "Invalid input", http.StatusBadRequest)
+        return
+    }
 
-	err = services.CreateNote(note)
-	if err != nil {
-		http.Error(w, "Failed to create note", http.StatusInternalServerError)
-		return
-	}
+    // Create the note and get the ID
+    id, err := services.CreateNote(note)
+    if err != nil {
+        http.Error(w, "Failed to create note", http.StatusInternalServerError)
+        return
+    }
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(note)
+    // Set the ID in the note object
+    note.ID = id
+
+    // Return the created note with ID in the response
+    w.WriteHeader(http.StatusCreated)
+    json.NewEncoder(w).Encode(note)
 }
 
 // GetNoteByID retrieves a note by its ID

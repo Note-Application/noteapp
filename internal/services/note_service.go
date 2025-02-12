@@ -7,14 +7,14 @@ import (
 	"log"
 )
 
-// CreateNote creates a new note in the database
-func CreateNote(note models.Note) error {
-	err := repositories.CreateNote(db.DB, note)
-	if err != nil {
-		log.Println("Error creating note:", err)
-		return err
-	}
-	return nil
+// CreateNote creates a new note in the database and returns the ID of the newly created note
+func CreateNote(note models.Note) (int, error) {
+    id, err := repositories.CreateNote(db.DB, note)
+    if err != nil {
+        log.Println("Error creating note:", err)
+        return 0, err
+    }
+    return id, nil
 }
 
 // GetNoteByID retrieves a note by its ID
