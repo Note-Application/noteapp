@@ -33,6 +33,7 @@ func InitDB() {
 		)
 	}
 
+	connStr = "postgres://avnadmin:AVNS_wrkNseB_iSwng4azMWD@noteappdb-zoinme.k.aivencloud.com:22802/noteapp_db?sslmode=require"
 	// Open database connection
 	var err error
 	DB, err = sql.Open("postgres", connStr)

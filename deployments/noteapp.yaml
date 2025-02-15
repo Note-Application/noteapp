@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noteapp
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: noteapp
+  template:
+    metadata:
+      labels:
+        app: noteapp
+    spec:
+      containers:
+      - name: noteapp
+        image: ganeshvenkatasai/noteapp:latest
+        ports:
+        - containerPort: 7000
+        env:
+        - name: DATABASE_URL
+          value: "postgres://avnadmin:AVNS_wrkNseB_iSwng4azMWD@noteappdb-zoinme.k.aivencloud.com:22802/defaultdb?sslmode=require"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: noteapp
+spec:
+  selector:
+    app: noteapp
+  ports:
+    - protocol: TCP
+      port: 7000
+      targetPort: 7000
+  type: ClusterIP

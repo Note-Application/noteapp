@@ -1,0 +1,24 @@
+replicaCount: 2
+
+backend:
+  image: ganeshvenkatasai/noteapp:latest
+  containerPort: 7000
+  env:
+    DATABASE_URL: "postgres://avnadmin:AVNS_wrkNseB_iSwng4azMWD@noteappdb-zoinme.k.aivencloud.com:22802/defaultdb?sslmode=require"
+
+frontend:
+  image: ganeshvenkatasai/client:latest
+  containerPort: 80
+  env:
+    REACT_APP_API_BASE_URL: "http://noteapp:7000"
+    REACT_APP_GOOGLE_CLIENT_ID: "437083640575-eqgncvtn6ham29h67rskg8ibaku1jva8.apps.googleusercontent.com"
+
+service:
+  type: ClusterIP
+  frontendPort: 80
+  backendPort: 7000
+
+ingress:
+  enabled: true
+  host: "noteapp.example.com"  # Change this to your actual domain
+  tlsSecret: "noteapp-tls"

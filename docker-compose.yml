@@ -1,41 +1,31 @@
-version: "3.8"
-
-networks:
-  kloudnote_network:  # Define a custom network
-    driver: bridge
+version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15
-    container_name: kloudnote-postgres
+  noteapp:
+    image: ganeshvenkatasai/noteapp:latest
+    container_name: noteapp_backend
     restart: always
     environment:
-      POSTGRES_USER: ganesh
-      POSTGRES_PASSWORD: ganesh123
-      POSTGRES_DB: kloudnote_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - kloudnote_network  # Attach to the network
-
-  kloudnote_api:
-    build: .
-    container_name: kloudnote-api
-    restart: always
+      DATABASE_URL: 'postgres://avnadmin:AVNS_wrkNseB_iSwng4azMWD@noteappdb-zoinme.k.aivencloud.com:22802/defaultdb?sslmode=require'
     ports:
       - "7000:7000"
-    depends_on:
-      - postgres
-    environment:
-      DB_HOST: postgres  # Service name is used as hostname within the network
-      DB_USER: ganesh
-      DB_PASSWORD: ganesh123
-      DB_NAME: kloudnote_db
-      DB_PORT: 5432
     networks:
-      - kloudnote_network  # Attach to the network
+      - noteapp_network
 
-volumes:
-  postgres_data:
+  client:
+    image: ganeshvenkatasai/client:latest
+    container_name: noteapp_client
+    restart: always
+    environment:
+      REACT_APP_API_BASE_URL: "http://noteapp:7000"
+      REACT_APP_GOOGLE_CLIENT_ID: "437083640575-eqgncvtn6ham29h67rskg8ibaku1jva8.apps.googleusercontent.com"
+    ports:
+      - "3000:80"  
+    depends_on:
+      - noteapp
+    networks:
+      - noteapp_network
+
+networks:
+  noteapp_network:
+    driver: bridge
