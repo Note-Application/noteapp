@@ -24,6 +24,17 @@ services:
     ports:
       - "7000:7000"
 
+  client:
+    image: ganeshvenkatasai/client:latest
+    container_name: client
+    restart: always
+    depends_on:
+      - noteapp
+    networks:
+      - noteapp_network
+    ports:
+      - "3000:3000"  # Exposing React app on port 3000
+
   postgres:
     image: postgres:15
     container_name: postgres
