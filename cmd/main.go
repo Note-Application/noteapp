@@ -1,41 +1,60 @@
 package main
 
 import (
+	"context"
 	"log"
-	"net/http"
-	"noteapp/api"
+	"net"
+	"noteapp/internal/handlers"
+	"noteapp/kafka"
 	"noteapp/pkg/db"
-	"os"
+	"noteapp/proto/generated"
+	"noteapp/redis"
 
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
+	"google.golang.org/grpc"
 )
 
 func main() {
-	// Load configuration
-	//config.LoadConfig()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Initialize database connection
 	db.InitDB()
 
-	// Setup routes
-	r := mux.NewRouter()
-	api.RegisterRoutes(r)
+	go func() {
+		err := redis.InitRedis("redis", "6379")
+		if err != nil {
+			log.Fatalf("❌ Failed to initialize Redis: %v", err)
+		}
+		log.Println("✅ Redis initialized successfully")
+	}()
 
-	// Apply CORS middleware
-	corsHandler := handlers.CORS(
-		// Allow all origins
-		handlers.AllowedOrigins([]string{"https://client-rust-nine-52.vercel.app", "*"}),
-		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
-		handlers.AllowedHeaders([]string{"Content-Type", "Authorization", "Accept"}),
-	)(r)
+	// Initialize Kafka producer
+	kafkaProducer := kafka.NewProducer()
+	defer kafkaProducer.Close() // Fix: Now `Close()` exists
 
-	// Start the server
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "3090"
+	// Start Kafka consumer in a separate goroutine
+	go func() {
+		log.Println("🚀 Starting Kafka Consumer...")
+		kafka.StartConsumer(ctx) // Fix: Now accepts `context.Context`
+	}()
+
+	// Start Redis-to-Kafka processing in a goroutine
+	go func() {
+		log.Println("🔄 Pushing Redis updates to Kafka...")
+		kafkaProducer.PushUpdatesToKafka(ctx) // Fix: Now accepts `context.Context`
+	}()
+
+	// Start gRPC server
+	server := grpc.NewServer()
+	generated.RegisterUserServiceServer(server, &handlers.UserHandler{})
+	generated.RegisterNoteServiceServer(server, &handlers.NoteHandler{})
+
+	listener, err := net.Listen("tcp", ":7000")
+	if err != nil {
+		log.Fatalf("❌ Failed to listen on port 7000: %v", err)
 	}
 
-	log.Println("Server starting on port " + port)
-	log.Fatal(http.ListenAndServe(":"+port, corsHandler))
+	log.Println("✅ gRPC server is running on port 7000 🚀")
+	if err := server.Serve(listener); err != nil {
+		log.Fatalf("❌ Failed to serve gRPC: %v", err)
+	}
 }
