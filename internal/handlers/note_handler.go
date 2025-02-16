@@ -1,88 +1,133 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
-	"net/http"
+	"fmt"
+	"log"
 	"noteapp/internal/models"
 	"noteapp/internal/services"
-	"github.com/gorilla/mux"
+	"noteapp/proto/generated"
+	"noteapp/redis"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
+type NoteHandler struct {
+	generated.UnimplementedNoteServiceServer
+}
+
 // CreateNote handles creating a new note
-func CreateNote(w http.ResponseWriter, r *http.Request) {
-    var note models.Note
-    err := json.NewDecoder(r.Body).Decode(&note)
-    if err != nil {
-        http.Error(w, "Invalid input", http.StatusBadRequest)
-        return
-    }
+func (s *NoteHandler) CreateNote(ctx context.Context, req *generated.CreateNoteRequest) (*generated.NoteResponse, error) {
+	note := models.Note{
+		UserID:  int(req.UserId),
+		Title:   req.Title,
+		Content: req.Content,
+	}
 
-    // Create the note and get the ID
-    id, err := services.CreateNote(note)
-    if err != nil {
-        http.Error(w, "Failed to create note", http.StatusInternalServerError)
-        return
-    }
+	// Create the note and get the ID
+	id, err := services.CreateNote(note)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to create note")
+	}
 
-    // Set the ID in the note object
-    note.ID = id
+	// Set the ID in the note object
+	note.ID = id
 
-    // Return the created note with ID in the response
-    w.WriteHeader(http.StatusCreated)
-    json.NewEncoder(w).Encode(note)
+	// Return the created note
+	return &generated.NoteResponse{
+		Note: &generated.Note{
+			Id:      int32(id),
+			UserId:  req.UserId,
+			Title:   req.Title,
+			Content: req.Content,
+		},
+	}, nil
 }
 
 // GetNoteByID retrieves a note by its ID
-func GetNoteByID(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	note, err := services.GetNoteByID(id)
+func (s *NoteHandler) GetNoteByID(ctx context.Context, req *generated.GetNoteByIDRequest) (*generated.NoteResponse, error) {
+	note, err := services.GetNoteByID(fmt.Sprintf("%d", req.Id))
 	if err != nil {
-		http.Error(w, "Note not found", http.StatusNotFound)
-		return
+		return nil, status.Errorf(codes.NotFound, "Note not found")
 	}
 
-	json.NewEncoder(w).Encode(note)
+	return &generated.NoteResponse{
+		Note: &generated.Note{
+			Id:      int32(note.ID),
+			UserId:  int32(note.UserID),
+			Title:   note.Title,
+			Content: note.Content,
+		},
+	}, nil
 }
 
 // GetNotesByUserID retrieves all notes for a specific user
-func GetNotesByUserID(w http.ResponseWriter, r *http.Request) {
-	userID := mux.Vars(r)["user_id"]
-	notes, err := services.GetNotesByUserID(userID)
+func (s *NoteHandler) GetNotesByUserID(ctx context.Context, req *generated.GetNotesByUserIDRequest) (*generated.GetNotesByUserIDResponse, error) {
+	notes, err := services.GetNotesByUserID(fmt.Sprintf("%d", req.UserId))
 	if err != nil {
-		http.Error(w, "No notes found", http.StatusNotFound)
-		return
+		return nil, status.Errorf(codes.NotFound, "No notes found")
 	}
 
-	json.NewEncoder(w).Encode(notes)
+	// Convert notes to gRPC format
+	var grpcNotes []*generated.Note
+	for _, note := range notes {
+		grpcNotes = append(grpcNotes, &generated.Note{
+			Id:      int32(note.ID),
+			UserId:  int32(note.UserID),
+			Title:   note.Title,
+			Content: note.Content,
+		})
+	}
+
+	return &generated.GetNotesByUserIDResponse{Notes: grpcNotes}, nil
 }
 
-// UpdateNote updates an existing note
-func UpdateNote(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	var note models.Note
-	err := json.NewDecoder(r.Body).Decode(&note)
-	if err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
+// UpdateNote publishes the update request to Kafka instead of updating directly
+func (s *NoteHandler) UpdateNote(ctx context.Context, req *generated.UpdateNoteRequest) (*generated.NoteResponse, error) {
+
+	// Create a structured JSON object
+	noteData := map[string]string{
+		"title":   req.Title,
+		"content": req.Content,
 	}
 
-	err = services.UpdateNote(id, note)
+	// Convert the map to JSON format
+	noteJSON, err := json.Marshal(noteData)
 	if err != nil {
-		http.Error(w, "Failed to update note", http.StatusInternalServerError)
-		return
+		return nil, status.Errorf(codes.Internal, "Failed to serialize note data")
 	}
 
-	json.NewEncoder(w).Encode(note)
+	// Store the updated note in Redis (with 30 seconds expiration)
+	redisKey := fmt.Sprintf("%d", req.Id)
+	redisValue := string(noteJSON)
+	err = redis.SetNote(redisKey, redisValue)
+	if err != nil {
+		log.Println("Failed to store note update in Redis:", err)
+		return nil, status.Errorf(codes.Internal, "Failed to store update in Redis")
+	}
+
+	log.Println("Stored note update in Redis for", req.Id)
+
+	// Return success response immediately (actual update happens via Kafka consumer)
+	return &generated.NoteResponse{
+		Note: &generated.Note{
+			Id:      req.Id,
+			Title:   req.Title,
+			Content: req.Content,
+		},
+	}, nil
 }
 
 // DeleteNote deletes a note by its ID
-func DeleteNote(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	err := services.DeleteNote(id)
+func (s *NoteHandler) DeleteNote(ctx context.Context, req *generated.DeleteNoteRequest) (*generated.DeleteNoteResponse, error) {
+	err := services.DeleteNote(fmt.Sprintf("%d", req.Id))
 	if err != nil {
-		http.Error(w, "Failed to delete note", http.StatusInternalServerError)
-		return
+		return nil, status.Errorf(codes.Internal, "Failed to delete note")
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	return &generated.DeleteNoteResponse{
+		Message: "Note deleted successfully",
+	}, nil
 }
