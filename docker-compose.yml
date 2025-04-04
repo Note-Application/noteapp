@@ -17,7 +17,7 @@ services:
     networks:
       - noteapp_network
     environment:
-      - DATABASE_URL=postgres://postgres:password@postgres:5432/noteappdb?sslmode=disable
+      - DATABASE_URL=postgres://avnadmin:AVNS_wrkNseB_iSwng4azMWD@noteappdb-zoinme.k.aivencloud.com:22802/defaultdb?sslmode=require
       - REDIS_ADDR=redis:6379
       - KAFKA_BROKER=kafka:9092
       - ENVOY_PROXY=http://envoy:9000
